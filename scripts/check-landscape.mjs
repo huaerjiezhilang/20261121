@@ -1,0 +1,21 @@
+import {chromium} from '@playwright/test';
+import assert from 'node:assert/strict';
+const browser=await chromium.launch({headless:true,executablePath:'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',args:['--enable-unsafe-swiftshader']});
+try{
+ const page=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.addInitScript(()=>{screen.orientation.lock=()=>Promise.reject(new Error('Orientation unavailable'));});
+ await page.goto('http://127.0.0.1:5173/');await page.locator('canvas[data-pose]').waitFor();await page.evaluate(()=>document.fonts.ready);
+ const frame=page.locator('.game-viewport'),canvas=page.locator('canvas'),pose=async()=>JSON.parse(await canvas.getAttribute('data-pose'));
+ assert.equal(await frame.getAttribute('data-landscape-rotated'),'true');assert.equal(await page.getByRole('dialog',{name:'请横屏体验'}).count(),0);
+ assert.deepEqual(await canvas.evaluate(c=>[c.clientWidth,c.clientHeight]),[844,390]);
+ await page.screenshot({path:'test-results/phone-auto-landscape.png'});await page.getByRole('button',{name:'走进小屋',exact:true}).tap();await page.waitForTimeout(250);
+ const before=await pose(),button=await page.getByRole('button',{name:/移动轮盘/}).boundingBox(),cdp=await page.context().newCDPSession(page);
+ await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:button.x+button.width/2,y:button.y+button.height/2}]});await page.waitForTimeout(80);await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:button.x+button.width/2,y:button.y+button.height/2+35}]});await page.waitForTimeout(400);await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await page.waitForTimeout(150);const moved=await pose();assert(Math.hypot(moved.x-before.x,moved.z-before.z)>.15);
+ await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:200,y:420}]});await page.waitForTimeout(80);await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:200,y:450}]});await page.waitForTimeout(80);await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:200,y:480}]});await page.waitForTimeout(80);await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await page.waitForTimeout(600);const looked=await pose();assert(looked.yaw<moved.yaw-.1);assert(Math.abs(looked.pitch-moved.pitch)<.01);
+await page.getByRole('button',{name:/生日彩带/}).tap();const journal=page.getByRole('dialog',{name:'生日彩带'});await journal.waitFor();const rect=await journal.boundingBox();assert(rect.x>=0&&rect.y>=0&&rect.x+rect.width<=391&&rect.y+rect.height<=845);await page.screenshot({path:'test-results/phone-auto-dialog.png'});
+await page.setViewportSize({width:844,height:390});await page.waitForTimeout(250);assert.equal(await frame.getAttribute('data-landscape-rotated'),'false');await journal.waitFor();await page.getByRole('button',{name:'关闭',exact:true}).tap();await page.waitForTimeout(200);assert(!(await pose()).paused);
+const after=await pose();assert(Math.hypot(after.x-looked.x,after.z-looked.z)<.001);assert(!/\bE\b/.test((await page.locator('.interaction-prompt').allInnerTexts()).join(' ')));
+ const prompt=await page.locator('.interaction-prompt').boundingBox(),pad=await page.locator('.touch-controls').boundingBox(),bar=await page.locator('.fps-toolbar').boundingBox(),action=await page.locator('.touch-interact').boundingBox();assert(prompt.y+prompt.height<pad.y);assert(pad.x+pad.width<bar.x&&bar.x+bar.width<action.x);
+ await page.setViewportSize({width:375,height:667});await page.waitForTimeout(250);assert.equal(await frame.getAttribute('data-landscape-rotated'),'true');assert.equal(await page.evaluate(()=>document.body.scrollWidth>innerWidth),false);await page.getByRole('button',{name:'玩法说明'}).tap();await page.getByRole('dialog',{name:'怎么玩'}).waitFor();await page.getByRole('button',{name:'知道啦，去逛逛'}).tap();await page.screenshot({path:'test-results/phone-auto-small.png'});
+ assert.deepEqual(errors,[]);console.log('PASS: rejected native lock falls back to automatic landscape; portrait canvas aspect, touch movement, transformed drag, dialogs, rotation preserves position, small phone, no E prompt.');
+}finally{await browser.close();}
