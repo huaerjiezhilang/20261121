@@ -20,7 +20,7 @@ npm.cmd run preview
 
 ## GitHub Pages 发布
 
-自动发布配置位于 `.github/workflows/deploy.yml`。首次发布需在目标仓库的 **Settings → Pages → Build and deployment → Source** 中选择 **GitHub Actions**。
+自动发布配置位于 `.github/workflows/deploy.yml`。首次发布需在目标仓库的 **Settings → Pages → Build and deployment → Source** 中选择 **GitHub Actions**。若 Pages 当前设为从 `main` 分支根目录发布，请改成 **GitHub Actions**；仓库中的 `src/` 是源码，不能直接作为网站运行。
 
 将项目源文件、`public/`、锁文件和工作流推送至 `main` 或 `master` 后，Actions 会安装依赖、检查谜题逻辑、构建并发布 `dist/`。无需上传 `node_modules/`、`dist/` 或本地测试截图。发布地址以 Actions 的 `github-pages` 环境输出为准，通常为 `https://<账号>.github.io/<仓库名>/`。
 
@@ -88,4 +88,3 @@ node scripts/check-puzzles.mjs
 ## 技术要求
 
 使用支持 WebGL 2 的现代浏览器，建议开启硬件加速。安装依赖需联网，安装后运行及游戏内容不依赖外部网络服务。系统减少动态效果设置会关闭装饰动画。
-
